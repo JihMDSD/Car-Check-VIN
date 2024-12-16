@@ -1,0 +1,55 @@
+
+   import requests
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+
+# توكن البوت الخاص بك من BotFather
+TOKEN = "ضع_التوكن_هنا"
+
+# رابط NHTSA API للحصول على معلومات السيارة
+API_URL = "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValuesBatch/"
+
+# دالة للتحقق من رقم الشاصي
+def check_vin(update, context):
+    vin = update.message.text.strip()  # قراءة رقم الشاصي من المستخدم
+    if len(vin) != 17:  # التحقق من أن الشاصي مكون من 17 رمزًا
+        update.message.reply_text("❌ رقم الشاصي غير صحيح. يجب أن يكون مكونًا من 17 رمزًا.")
+        return
+
+    # طلب البيانات من API
+    try:
+        response = requests.post(API_URL, data={"format": "json", "data": vin})
+        if response.status_code == 200:
+            result = response.json()["Results"][0]
+            # صياغة الرد
+            reply = f"""
+🚗 **تفاصيل السيارة:**
+- الشركة المصنعة: {result.get("Manufacturer", "غير متوفر")}
+- الطراز: {result.get("Model", "غير متوفر")}
+- السنة: {result.get("ModelYear", "غير متوفر")}
+- نوع الوقود: {result.get("FuelTypePrimary", "غير متوفر")}
+            """
+            update.message.reply_text(reply)
+        else:
+            update.message.reply_text("❌ تعذر الحصول على معلومات السيارة. حاول مرة أخرى لاحقًا.")
+    except Exception as e:
+        update.message.reply_text("⚠️ حدث خطأ أثناء الاتصال بالخدمة. حاول لاحقًا.")
+
+# دالة بدء البوت
+def start(update, context):
+    update.message.reply_text("مرحبًا! أرسل لي رقم الشاصي (VIN) للحصول على تقرير السيارة 🚘.")
+
+# إعداد البوت
+def main():
+    updater = Updater(TOKEN, use_context=True)
+    dp = updater.dispatcher
+
+    # أوامر البوت
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, check_vin))
+
+    # تشغيل البوت
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == "__main__":
+    main()
